@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Filament Pro: Shop Manager</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    .tab-content { animation: fadeIn 0.3s ease-in-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+    .cost-bar-segment { transition: width 0.5s ease-in-out; height: 100%; }
+  </style>
+</head>
+<body class="bg-[#0f172a] text-slate-200 min-h-screen p-4 md:p-8">
+  <div class="max-w-5xl mx-auto">
+    
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+        <div>
+            <h1 class="text-3xl font-black text-white tracking-tight">FILAMENT<span class="text-blue-500">PRO</span></h1>
+            <p class="text-slate-400 text-sm">Professional 3D Printing Cost Management</p>
+        </div>
+        <nav class="flex bg-slate-800/50 p-1 rounded-xl border border-slate-700 overflow-x-auto max-w-full" id="tabs">
+            <button class="tab-btn py-2 px-4 rounded-lg text-xs md:text-sm font-bold transition-all bg-blue-600 text-white whitespace-nowrap" data-tab="calculator">Calculator</button>
+            <button class="tab-btn py-2 px-4 rounded-lg text-xs md:text-sm font-bold text-slate-400 hover:text-white whitespace-nowrap" data-tab="filament">Inventory</button>
+            <button class="tab-btn py-2 px-4 rounded-lg text-xs md:text-sm font-bold text-slate-400 hover:text-white whitespace-nowrap" data-tab="settings">Settings</button>
+            <button class="tab-btn py-2 px-4 rounded-lg text-xs md:text-sm font-bold text-slate-400 hover:text-white whitespace-nowrap" data-tab="support">Support ☕</button>
+        </nav>
+    </div>
+
+    <!-- Main Calculator Area -->
+    <div id="calculator" class="tab-content grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div class="lg:col-span-2 space-y-6">
+        <div class="bg-slate-800 border border-slate-700 p-6 rounded-2xl shadow-xl space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="space-y-1">
+                    <label class="text-xs font-bold text-slate-500 uppercase tracking-widest">Project Name</label>
+                    <input id="calc-project-name" type="text" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 focus:border-blue-500 outline-none" placeholder="e.g. New Project">
+                </div>
+                <div class="space-y-1">
+                    <label class="text-xs font-bold text-slate-500 uppercase tracking-widest">Filament Profile</label>
+                    <select id="calc-filament" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 focus:border-blue-500 outline-none"></select>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="space-y-1">
+                    <label class="text-xs font-bold text-slate-500 uppercase tracking-widest">Net Weight (g)</label>
+                    <input id="calc-weight" type="number" step="any" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3" placeholder="0.00">
+                </div>
+                <div class="space-y-1">
+                    <label class="text-xs font-bold text-slate-500 uppercase tracking-widest">Print Duration</label>
+                    <div class="flex gap-2">
+                        <input id="calc-print-hrs" type="number" step="any" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-center" placeholder="Hrs">
+                        <input id="calc-print-mins" type="number" step="any" max="59" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-center" placeholder="Mins">
+                    </div>
+                </div>
+            </div>
+
+            <div class="pt-4 flex gap-3">
+                <button onclick="calculateCost()" class="flex-grow bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-xl shadow-lg transition-all active:scale-[0.98]">GENERATE QUOTE</button>
+                <button onclick="clearCalculator()" class="px-6 bg-slate-700 hover:bg-slate-600 font-bold rounded-xl transition-all">RESET</button>
+            </div>
+        </div>
+
+        <div class="bg-slate-800/50 border border-slate-700 p-6 rounded-2xl">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-bold text-lg text-slate-300">Build History</h3>
+                <button onclick="clearHistory()" class="text-xs text-slate-500 hover:text-red-400 uppercase font-bold tracking-widest">Wipe Log</button>
+            </div>
+            <div id="recent-calculations" class="space-y-3"></div>
+        </div>
+      </div>
+
+      <div class="space-y-6">
+        <div id="result-card" class="bg-slate-800 border border-slate-700 p-6 rounded-2xl shadow-xl hidden">
+            <h3 class="text-xs font-black text-slate-500 uppercase mb-4 tracking-widest">Quote Breakdown</h3>
+            <div id="calc-total-display" class="text-5xl font-black text-white mb-2">$0.00</div>
+            <p id="calc-project-title" class="text-blue-400 font-bold mb-6 truncate text-sm">Untitled</p>
+            
+            <div class="space-y-4">
+                <div class="h-3 w-full bg-slate-900 rounded-full overflow-hidden flex">
+                    <div id="bar-mat" class="cost-bar-segment bg-blue-500" style="width: 0%"></div>
+                    <div id="bar-elec" class="cost-bar-segment bg-yellow-500" style="width: 0%"></div>
+                    <div id="bar-labor" class="cost-bar-segment bg-emerald-500" style="width: 0%"></div>
+                </div>
+                <div class="grid grid-cols-1 gap-2 text-xs font-bold uppercase">
+                    <div class="flex justify-between p-2 rounded bg-slate-900/50">
+                        <span class="text-blue-400">● Material</span>
+                        <span id="stat-mat">$0.00</span>
+                    </div>
+                    <div class="flex justify-between p-2 rounded bg-slate-900/50">
+                        <span class="text-yellow-500">● Electricity</span>
+                        <span id="stat-elec">$0.00</span>
+                    </div>
+                    <div class="flex justify-between p-2 rounded bg-slate-900/50">
+                        <span class="text-emerald-500">● Labor/Maint.</span>
+                        <span id="stat-labor">$0.00</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-blue-600/10 border border-blue-500/30 p-4 rounded-xl">
+            <h4 class="text-blue-400 text-xs font-black uppercase mb-2">Active Config</h4>
+            <div id="active-rates" class="text-[10px] text-slate-400 space-y-1"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Inventory Tab -->
+    <div id="filament" class="tab-content hidden max-w-2xl mx-auto">
+        <div class="bg-slate-800 p-8 rounded-2xl border border-slate-700 shadow-2xl space-y-6">
+            <h2 class="text-xl font-black mb-2">Stock Management</h2>
+            <div class="grid grid-cols-1 gap-5">
+                <div class="space-y-1">
+                    <label class="text-[10px] font-black text-slate-500 uppercase ml-1 tracking-widest">Brand</label>
+                    <select id="filament-brand" onchange="toggleCustomBrand()" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 outline-none focus:border-emerald-500 transition-all">
+                        <option value="Anycubic">Anycubic</option>
+                        <option value="Bambu Lab">Bambu Lab</option>
+                        <option value="DURAMIC">DURAMIC</option>
+                        <option value="ERYONE">ERYONE</option>
+                        <option value="FUGACITY">FUGACITY</option>
+                        <option value="Jayo">Jayo</option>
+                        <option value="Sunlu">Sunlu</option>
+                        <option value="XZN">XZN</option>
+                        <option value="eSun">eSun</option>
+                        <option value="Custom">-- Custom Brand --</option>
+                    </select>
+                    <div id="custom-brand-container" class="hidden mt-2">
+                        <input id="filament-brand-custom" type="text" class="w-full bg-slate-900 border border-emerald-500/50 rounded-xl p-3 outline-none" placeholder="Type brand name...">
+                    </div>
+                </div>
+
+                <div class="space-y-1">
+                    <label class="text-[10px] font-black text-slate-500 uppercase ml-1 tracking-widest">Color / Name</label>
+                    <input id="filament-color" type="text" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 outline-none focus:border-emerald-500" placeholder="e.g. Matte Black">
+                </div>
+
+                <div class="space-y-1">
+                    <label class="text-[10px] font-black text-slate-500 uppercase ml-1 tracking-widest">Material Type</label>
+                    <div class="grid grid-cols-1 gap-2">
+                        <select id="filament-type" onchange="toggleCustomType()" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 outline-none focus:border-emerald-500">
+                            <option value="PLA">PLA</option>
+                            <option value="PETG">PETG</option>
+                            <option value="ABS">ABS</option>
+                            <option value="TPU">TPU</option>
+                            <option value="ASA">ASA</option>
+                            <option value="Custom">-- Custom Type --</option>
+                        </select>
+                        <div id="custom-type-container" class="hidden">
+                            <input id="filament-type-custom" type="text" class="w-full bg-slate-900 border border-emerald-500/50 rounded-xl p-3 outline-none" placeholder="Type (e.g. Nylon, PA-CF)...">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-black text-slate-500 uppercase ml-1 tracking-widest">Spool Cost ($)</label>
+                        <input id="filament-cost" type="number" step="0.01" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 outline-none focus:border-emerald-500" placeholder="25.00">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-black text-slate-500 uppercase ml-1 tracking-widest">Spool Size (kg)</label>
+                        <input id="filament-weight" type="number" step="0.1" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 outline-none focus:border-emerald-500" placeholder="1.0">
+                    </div>
+                </div>
+
+                <button onclick="saveFilament()" class="bg-emerald-600 hover:bg-emerald-500 py-4 rounded-xl font-black transition-all shadow-lg shadow-emerald-900/20 active:scale-[0.98]">ADD TO INVENTORY</button>
+            </div>
+            
+            <div class="mt-8">
+                <h3 class="text-xs font-black text-slate-500 uppercase mb-4 tracking-[0.2em]">Stored Inventory</h3>
+                <div id="filament-list" class="space-y-2"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Tab -->
+    <div id="settings" class="tab-content hidden max-w-3xl mx-auto">
+        <div class="bg-slate-800 p-8 rounded-2xl border border-slate-700 shadow-2xl space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div class="space-y-4">
+                    <h3 class="text-blue-400 font-black text-xs uppercase tracking-[0.2em]">Operating Costs</h3>
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-bold text-slate-500 uppercase">Labor Rate ($/hr)</label>
+                        <input id="print-cost" type="number" step="any" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-bold text-slate-500 uppercase">Printer Maintenance ($/hr)</label>
+                        <input id="maint-cost" type="number" step="0.01" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3">
+                    </div>
+                </div>
+                <div class="space-y-4 md:border-l border-slate-700 md:pl-8">
+                    <h3 class="text-yellow-500 font-black text-xs uppercase tracking-[0.2em]">Energy Stats</h3>
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-bold text-slate-500 uppercase">Electricity Price ($/kWh)</label>
+                        <input id="elec-kwh-cost" type="number" step="0.001" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-bold text-slate-500 uppercase">Avg. Power Draw (Watts)</label>
+                        <input id="elec-printer-watts" type="number" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3">
+                    </div>
+                </div>
+            </div>
+            <button onclick="saveSettings()" class="w-full bg-blue-600 py-4 rounded-xl font-black transition-all shadow-lg shadow-blue-900/40">COMMIT SYSTEM DEFAULTS</button>
+        </div>
+    </div>
+
+    <!-- Support Tab (NEW) -->
+    <div id="support" class="tab-content hidden max-w-xl mx-auto">
+        <div class="bg-slate-800 p-8 rounded-2xl border border-slate-700 shadow-2xl text-center space-y-6">
+            <div class="w-20 h-20 bg-yellow-500/10 text-yellow-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16.72 11.06A5 5 0 0115 9h-.5a.5.5 0 010-1h.5c.34 0 .67.04 1 .12a3 3 0 005-2.12c0-1.66-1.34-3-3-3a3 3 0 00-3 3v.5a.5.5 0 01-1 0V6a5 5 0 10-10 0v.5a.5.5 0 01-1 0V6a3 3 0 00-3-3a3 3 0 00-3 3a3 3 0 005 2.12c.33-.08.66-.12 1-.12h.5a.5.5 0 010 1H5a5 5 0 01-1.72 2.06 5 5 0 01-1.72 2.06 5 5 0 109.44 2.06c.33-.08.66-.12 1-.12h.5a.5.5 0 010 1H12a5 5 0 109.44-2.06z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19h6" />
+                </svg>
+            </div>
+            <h2 class="text-2xl font-black text-white">Help Support the Creator</h2>
+            <p class="text-slate-400 leading-relaxed">
+                This tool is free and open source. If it saved you money on a print job, consider buying a coffee!
+            </p>
+            <a href="https://www.buymeacoffee.com/uncompg" target="_blank" class="inline-flex items-center gap-3 bg-yellow-500 hover:bg-yellow-400 text-slate-900 font-black py-4 px-8 rounded-xl transition-all transform hover:scale-105 shadow-lg shadow-yellow-500/20">
+                <span class="text-xl">☕</span> BUY ME A COFFEE
+            </a>
+            <div class="pt-4 text-[10px] text-slate-500 uppercase tracking-widest font-bold">
+                Thanks for the coffee! You’re helping turn Filament Pro from a web tool into a full mobile app. I’ll keep you posted on our progress toward the App Store fees!
+            </div>
+        </div>
+    </div>
+
+  </div>
+
+  <script>
+    // Tab Switching Logic
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', function () {
+        document.querySelectorAll('.tab-btn').forEach(b => {
+            b.classList.remove('bg-blue-600', 'text-white');
+            b.classList.add('text-slate-400');
+        });
+        document.querySelectorAll('.tab-content').forEach(tc => tc.classList.add('hidden'));
+        this.classList.add('bg-blue-600', 'text-white');
+        this.classList.remove('text-slate-400');
+        document.getElementById(this.dataset.tab).classList.remove('hidden');
+      });
+    });
+
+    // Initialize System
+    window.onload = () => { loadSettings(); loadFilaments(); updateRatesPreview(); };
+
+    function saveSettings() {
+        localStorage.setItem('printCost', document.getElementById('print-cost').value);
+        localStorage.setItem('maintCost', document.getElementById('maint-cost').value);
+        localStorage.setItem('elecKwh', document.getElementById('elec-kwh-cost').value);
+        localStorage.setItem('elecWatts', document.getElementById('elec-printer-watts').value);
+        updateRatesPreview();
+        alert('System Profile Synchronized.');
+    }
+
+    function loadSettings() {
+        if (!localStorage.getItem('printCost')) localStorage.setItem('printCost', '0');
+        if (!localStorage.getItem('maintCost')) localStorage.setItem('maintCost', '0.05');
+        if (!localStorage.getItem('elecKwh')) localStorage.setItem('elecKwh', '0.12');
+        if (!localStorage.getItem('elecWatts')) localStorage.setItem('elecWatts', '150');
+
+        document.getElementById('print-cost').value = localStorage.getItem('printCost');
+        document.getElementById('maint-cost').value = localStorage.getItem('maintCost');
+        document.getElementById('elec-kwh-cost').value = localStorage.getItem('elecKwh');
+        document.getElementById('elec-printer-watts').value = localStorage.getItem('elecWatts');
+    }
+
+    function updateRatesPreview() {
+        const rates = document.getElementById('active-rates');
+        rates.innerHTML = `
+            <div>LABOR/MAINT: $${(parseFloat(localStorage.getItem('printCost')) + parseFloat(localStorage.getItem('maintCost'))).toFixed(2)}/hr</div>
+            <div>ENERGY: $${localStorage.getItem('elecKwh')}/kWh @ ${localStorage.getItem('elecWatts')}W</div>
+        `;
+    }
+
+    function toggleCustomBrand() {
+        const brandSelect = document.getElementById('filament-brand');
+        document.getElementById('custom-brand-container').classList.toggle('hidden', brandSelect.value !== 'Custom');
+    }
+
+    function toggleCustomType() {
+        const typeSelect = document.getElementById('filament-type');
+        document.getElementById('custom-type-container').classList.toggle('hidden', typeSelect.value !== 'Custom');
+    }
+
+    function saveFilament() {
+      const brandSelect = document.getElementById('filament-brand');
+      const typeSelect = document.getElementById('filament-type');
+      let brand = brandSelect.value === 'Custom' ? document.getElementById('filament-brand-custom').value.trim() : brandSelect.value;
+      let type = typeSelect.value === 'Custom' ? document.getElementById('filament-type-custom').value.trim() : typeSelect.value;
+      const color = document.getElementById('filament-color').value.trim();
+      const cost = parseFloat(document.getElementById('filament-cost').value);
+      const weight = parseFloat(document.getElementById('filament-weight').value);
+
+      if (!color || isNaN(cost) || isNaN(weight) || !brand || !type) return alert('Data missing. Please verify inputs.');
+
+      const filaments = JSON.parse(localStorage.getItem('filaments') || '[]');
+      filaments.push({ id: Date.now(), type, brand, color, cost, weight });
+      localStorage.setItem('filaments', JSON.stringify(filaments));
+      
+      document.getElementById('filament-color').value = '';
+      document.getElementById('filament-cost').value = '';
+      document.getElementById('filament-weight').value = '';
+      document.getElementById('filament-brand-custom').value = '';
+      document.getElementById('filament-type-custom').value = '';
+      brandSelect.selectedIndex = 0;
+      typeSelect.selectedIndex = 0;
+      toggleCustomBrand();
+      toggleCustomType();
+      loadFilaments();
+    }
+
+    function loadFilaments() {
+      const list = document.getElementById('filament-list');
+      const dropdown = document.getElementById('calc-filament');
+      const filaments = JSON.parse(localStorage.getItem('filaments') || '[]');
+      list.innerHTML = ''; dropdown.innerHTML = '';
+
+      if (filaments.length === 0) {
+          const opt = document.createElement('option');
+          opt.textContent = "— Add Filament in Inventory —";
+          dropdown.appendChild(opt);
+          return;
+      }
+
+      filaments.forEach(f => {
+        const li = document.createElement('li');
+        li.className = "flex justify-between items-center bg-slate-900 p-4 rounded-xl border border-slate-700 text-sm";
+        li.innerHTML = `
+            <div class="flex flex-col">
+                <span class="font-bold text-white">${f.brand} ${f.color}</span>
+                <span class="text-[10px] text-slate-500 uppercase font-black tracking-widest">${f.type} • $${parseFloat(f.cost).toFixed(2)} / ${f.weight}kg</span>
+            </div>
+            <button class="text-slate-500 hover:text-red-500 font-bold p-2 transition-colors" onclick="deleteFilament(${f.id})">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+            </button>`;
+        list.appendChild(li);
+        const opt = document.createElement('option');
+        opt.value = f.id; 
+        opt.textContent = `${f.brand} ${f.color} (${f.type})`;
+        dropdown.appendChild(opt);
+      });
+    }
+
+    function deleteFilament(id) {
+      if(!confirm("Remove this filament from inventory?")) return;
+      let filaments = JSON.parse(localStorage.getItem('filaments') || '[]');
+      localStorage.setItem('filaments', JSON.stringify(filaments.filter(f => f.id !== id)));
+      loadFilaments();
+    }
+
+    function clearCalculator() {
+        document.getElementById('calc-project-name').value = '';
+        document.getElementById('calc-weight').value = '';
+        document.getElementById('calc-print-hrs').value = '';
+        document.getElementById('calc-print-mins').value = '';
+        document.getElementById('result-card').classList.add('hidden');
+    }
+
+    function clearHistory() { 
+        if(confirm("Clear all previous calculations?")) {
+            document.getElementById('recent-calculations').innerHTML = ''; 
+        }
+    }
+
+    function calculateCost() {
+      const filaments = JSON.parse(localStorage.getItem('filaments') || '[]');
+      const selectedId = parseInt(document.getElementById('calc-filament').value);
+      const selectedFilament = filaments.find(f => f.id === selectedId);
+      if (!selectedFilament) return alert('Select filament profile');
+
+      const name = document.getElementById('calc-project-name').value || 'New Print Job';
+      const weightUsed = parseFloat(document.getElementById('calc-weight').value) || 0;
+      const totalHours = (parseFloat(document.getElementById('calc-print-hrs').value) || 0) + 
+                         ((parseFloat(document.getElementById('calc-print-mins').value) || 0) / 60);
+
+      const eWatts = parseFloat(localStorage.getItem('elecWatts'));
+      const eKwh = parseFloat(localStorage.getItem('elecKwh'));
+      const lRate = parseFloat(localStorage.getItem('printCost'));
+      const mRate = parseFloat(localStorage.getItem('maintCost'));
+
+      const matCost = (selectedFilament.cost / (selectedFilament.weight * 1000)) * weightUsed;
+      const elecCost = (eWatts / 1000) * totalHours * eKwh;
+      const laborTotal = totalHours * (lRate + mRate);
+      const total = matCost + elecCost + laborTotal;
+
+      document.getElementById('result-card').classList.remove('hidden');
+      document.getElementById('calc-total-display').textContent = `$${total.toFixed(2)}`;
+      document.getElementById('calc-project-title').textContent = name;
+      document.getElementById('stat-mat').textContent = `$${matCost.toFixed(2)}`;
+      document.getElementById('stat-elec').textContent = `$${elecCost.toFixed(2)}`;
+      document.getElementById('stat-labor').textContent = `$${laborTotal.toFixed(2)}`;
+
+      const pMat = (matCost / total) * 100 || 0;
+      const pElec = (elecCost / total) * 100 || 0;
+      const pLab = (laborTotal / total) * 100 || 0;
+      document.getElementById('bar-mat').style.width = pMat + '%';
+      document.getElementById('bar-elec').style.width = pElec + '%';
+      document.getElementById('bar-labor').style.width = pLab + '%';
+
+      const history = document.getElementById('recent-calculations');
+      const card = document.createElement('div');
+      card.className = "bg-slate-900 p-4 rounded-xl flex justify-between items-center border-l-4 border-blue-500 animate-fadeIn";
+      card.innerHTML = `<div><div class="font-black text-white text-sm">${name}</div><div class="text-[10px] text-slate-500 font-bold uppercase">${selectedFilament.brand} • ${weightUsed}g</div></div><div class="text-xl font-black text-blue-400">$${total.toFixed(2)}</div>`;
+      history.prepend(card);
+    }
+  </script>
+</body>
+</html>
