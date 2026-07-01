@@ -1,0 +1,41 @@
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+
+# Capacitor
+# If you are using a build tool, ignore the build output folder (e.g., www/ or dist/)
+# However, if your source files are inside www/, do not ignore it.
+# capacitor-cordova-android-plugins
+
+# Android
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/captures/
+android/*.iml
+android/.idea/workspace.xml
+android/.idea/tasks.xml
+android/.idea/gradle.xml
+android/.idea/assetWizardSettings.xml
+android/.idea/dictionaries
+android/.idea/libraries
+android/.idea/caches
+android/.idea/modules.xml
+android/.idea/navEditor.xml
+android/capacitor-cordova-android-plugins/
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.bak
+*.tmp
+.DS_Store
+
+# OS
+Thumbs.db
+Desktop.ini

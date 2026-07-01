@@ -15,7 +15,6 @@
 <body class="bg-[#0f172a] text-slate-200 min-h-screen p-4 md:p-8">
   <div class="max-w-5xl mx-auto">
     
-    <!-- Header -->
     <div class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
         <div>
             <h1 class="text-3xl font-black text-white tracking-tight">FILAMENT<span class="text-blue-500">PRO</span></h1>
@@ -29,7 +28,6 @@
         </nav>
     </div>
 
-    <!-- Main Calculator Area -->
     <div id="calculator" class="tab-content grid grid-cols-1 lg:grid-cols-3 gap-8">
       <div class="lg:col-span-2 space-y-6">
         <div class="bg-slate-800 border border-slate-700 p-6 rounded-2xl shadow-xl space-y-4">
@@ -67,7 +65,10 @@
         <div class="bg-slate-800/50 border border-slate-700 p-6 rounded-2xl">
             <div class="flex justify-between items-center mb-4">
                 <h3 class="font-bold text-lg text-slate-300">Build History</h3>
-                <button onclick="clearHistory()" class="text-xs text-slate-500 hover:text-red-400 uppercase font-bold tracking-widest">Wipe Log</button>
+                <div class="flex gap-2">
+                    <button onclick="exportJobsCSV()" class="text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-1.5 rounded-lg uppercase font-bold tracking-wider">Export Log</button>
+                    <button onclick="clearHistory()" class="text-xs text-slate-500 hover:text-red-400 uppercase font-bold tracking-widest px-2">Wipe Log</button>
+                </div>
             </div>
             <div id="recent-calculations" class="space-y-3"></div>
         </div>
@@ -78,7 +79,7 @@
             <h3 class="text-xs font-black text-slate-500 uppercase mb-4 tracking-widest">Quote Breakdown</h3>
             <div id="calc-total-display" class="text-5xl font-black text-white mb-2">$0.00</div>
             <p id="calc-project-title" class="text-blue-400 font-bold mb-6 truncate text-sm">Untitled</p>
-            
+
             <div class="space-y-4">
                 <div class="h-3 w-full bg-slate-900 rounded-full overflow-hidden flex">
                     <div id="bar-mat" class="cost-bar-segment bg-blue-500" style="width: 0%"></div>
@@ -109,10 +110,16 @@
       </div>
     </div>
 
-    <!-- Inventory Tab -->
     <div id="filament" class="tab-content hidden max-w-2xl mx-auto">
         <div class="bg-slate-800 p-8 rounded-2xl border border-slate-700 shadow-2xl space-y-6">
-            <h2 class="text-xl font-black mb-2">Stock Management</h2>
+            <div class="flex justify-between items-center mb-2">
+                <h2 class="text-xl font-black">Stock Management</h2>
+                <div class="flex gap-2">
+                    <button onclick="exportInventoryCSV()" class="text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-1.5 rounded-lg font-bold uppercase">Export</button>
+                    <label for="import-inventory-input" class="text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-1.5 rounded-lg font-bold uppercase cursor-pointer">Import</label>
+                    <input type="file" id="import-inventory-input" class="hidden" accept=".csv" onchange="importInventoryCSV(event)">
+                </div>
+            </div>
             <div class="grid grid-cols-1 gap-5">
                 <div class="space-y-1">
                     <label class="text-[10px] font-black text-slate-500 uppercase ml-1 tracking-widest">Brand</label>
@@ -168,7 +175,7 @@
 
                 <button onclick="saveFilament()" class="bg-emerald-600 hover:bg-emerald-500 py-4 rounded-xl font-black transition-all shadow-lg shadow-emerald-900/20 active:scale-[0.98]">ADD TO INVENTORY</button>
             </div>
-            
+
             <div class="mt-8">
                 <h3 class="text-xs font-black text-slate-500 uppercase mb-4 tracking-[0.2em]">Stored Inventory</h3>
                 <div id="filament-list" class="space-y-2"></div>
@@ -176,7 +183,6 @@
         </div>
     </div>
 
-    <!-- Settings Tab -->
     <div id="settings" class="tab-content hidden max-w-3xl mx-auto">
         <div class="bg-slate-800 p-8 rounded-2xl border border-slate-700 shadow-2xl space-y-6">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -207,7 +213,6 @@
         </div>
     </div>
 
-    <!-- Support Tab (NEW) -->
     <div id="support" class="tab-content hidden max-w-xl mx-auto">
         <div class="bg-slate-800 p-8 rounded-2xl border border-slate-700 shadow-2xl text-center space-y-6">
             <div class="w-20 h-20 bg-yellow-500/10 text-yellow-500 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -231,6 +236,7 @@
 
   </div>
 
+  <script src="new.js"></script>
   <script>
     // Tab Switching Logic
     document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -247,7 +253,7 @@
     });
 
     // Initialize System
-    window.onload = () => { loadSettings(); loadFilaments(); updateRatesPreview(); };
+    window.onload = () => { loadSettings(); loadFilaments(); updateRatesPreview(); if(typeof loadJobs === 'function') loadJobs(); };
 
     function saveSettings() {
         localStorage.setItem('printCost', document.getElementById('print-cost').value);
@@ -256,6 +262,107 @@
         localStorage.setItem('elecWatts', document.getElementById('elec-printer-watts').value);
         updateRatesPreview();
         alert('System Profile Synchronized.');
+    }
+
+    // Smart Export Hybrid Logic (Works on Browser & Pixel App)
+    function executeHybridExport(csvContent, defaultFilename) {
+        if (window.AndroidShare && window.AndroidShare.shareFile) {
+            // Android App Mode -> Use Native Java Bridge
+            window.AndroidShare.shareFile(csvContent, defaultFilename);
+        } else {
+            // Web Browser Mode -> Direct File Download Blob
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", defaultFilename);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    }
+
+    function exportInventoryCSV() {
+        const filaments = JSON.parse(localStorage.getItem('filaments') || '[]');
+        if (filaments.length === 0) return alert('Your inventory is empty. Nothing to export!');
+
+        let csvContent = "ID,Brand,Color,MaterialType,Cost,WeightKG\n";
+        filaments.forEach(f => {
+            const brand = f.brand.replace(/"/g, '""');
+            const color = f.color.replace(/"/g, '""');
+            csvContent += `${f.id},"${brand}","${color}",${f.type},${f.cost},${f.weight}\n`;
+        });
+
+        executeHybridExport(csvContent, "filament_inventory_backup.csv");
+    }
+
+    function exportJobsCSV() {
+        const historyContainer = document.getElementById('recent-calculations');
+        const cards = historyContainer.children;
+        if (cards.length === 0) return alert('No calculations in the log to export!');
+
+        let csvContent = "Job Name,Filament Config,Total Cost\n";
+        for (let i = 0; i < cards.length; i++) {
+            const name = cards[i].querySelector('.font-black').textContent.replace(/"/g, '""');
+            const details = cards[i].querySelector('.text-\\[10px\\]').textContent.replace(/"/g, '""');
+            const cost = cards[i].querySelector('.text-xl').textContent.replace(/[$,]/g, '');
+            csvContent += `"${name}","${details}",${cost}\n`;
+        }
+
+        executeHybridExport(csvContent, "print_jobs_report.csv");
+    }
+
+    function importInventoryCSV(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const text = e.target.result;
+            const lines = text.split('\n');
+            if (lines.length <= 1) return alert('The selected file is empty.');
+
+            const parsedFilaments = [];
+            for (let i = 1; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line) continue;
+
+                const columns = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+                if (columns.length >= 6) {
+                    parsedFilaments.push({
+                        id: parseInt(columns[0]) || Date.now() + i,
+                        brand: columns[1].replace(/^"|"$/g, ''),
+                        color: columns[2].replace(/^"|"$/g, ''),
+                        type: columns[3],
+                        cost: parseFloat(columns[4]) || 0,
+                        weight: parseFloat(columns[5]) || 0
+                    });
+                }
+            }
+
+            if (parsedFilaments.length === 0) return alert('Could not parse any valid entries.');
+            const existingFilaments = JSON.parse(localStorage.getItem('filaments') || '[]');
+
+            if (existingFilaments.length > 0) {
+                const choice = confirm(`Found ${parsedFilaments.length} items.\n\nOK: Add to existing inventory.\nCancel: Overwrite everything.`);
+                if (choice) {
+                    localStorage.setItem('filaments', JSON.stringify(existingFilaments.concat(parsedFilaments)));
+                } else {
+                    if (confirm("Overwrite everything? Current items will be lost.")) {
+                        localStorage.setItem('filaments', JSON.stringify(parsedFilaments));
+                    } else {
+                        return;
+                    }
+                }
+            } else {
+                localStorage.setItem('filaments', JSON.stringify(parsedFilaments));
+            }
+
+            loadFilaments();
+            alert('Inventory Updated Successfully!');
+            event.target.value = '';
+        };
+        reader.readAsText(file);
     }
 
     function loadSettings() {
@@ -302,7 +409,7 @@
       const filaments = JSON.parse(localStorage.getItem('filaments') || '[]');
       filaments.push({ id: Date.now(), type, brand, color, cost, weight });
       localStorage.setItem('filaments', JSON.stringify(filaments));
-      
+
       document.getElementById('filament-color').value = '';
       document.getElementById('filament-cost').value = '';
       document.getElementById('filament-weight').value = '';
@@ -343,7 +450,7 @@
             </button>`;
         list.appendChild(li);
         const opt = document.createElement('option');
-        opt.value = f.id; 
+        opt.value = f.id;
         opt.textContent = `${f.brand} ${f.color} (${f.type})`;
         dropdown.appendChild(opt);
       });
@@ -364,9 +471,9 @@
         document.getElementById('result-card').classList.add('hidden');
     }
 
-    function clearHistory() { 
+    function clearHistory() {
         if(confirm("Clear all previous calculations?")) {
-            document.getElementById('recent-calculations').innerHTML = ''; 
+            document.getElementById('recent-calculations').innerHTML = '';
         }
     }
 
@@ -378,7 +485,7 @@
 
       const name = document.getElementById('calc-project-name').value || 'New Print Job';
       const weightUsed = parseFloat(document.getElementById('calc-weight').value) || 0;
-      const totalHours = (parseFloat(document.getElementById('calc-print-hrs').value) || 0) + 
+      const totalHours = (parseFloat(document.getElementById('calc-print-hrs').value) || 0) +
                          ((parseFloat(document.getElementById('calc-print-mins').value) || 0) / 60);
 
       const eWatts = parseFloat(localStorage.getItem('elecWatts'));
